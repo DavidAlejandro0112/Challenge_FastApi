@@ -25,7 +25,7 @@ async def read_tag(tag_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Tag not found")
     return db_tag
 
-@router.put("/{tag_id}", response_model=Tag)
+@router.patch("/{tag_id}", response_model=Tag)
 async def update_tag(tag_id: int, tag: TagUpdate, db: AsyncSession = Depends(get_db)):
     db_tag = await crud_tag.update_tag(db, tag_id=tag_id, tag_update=tag)
     if db_tag is None:
@@ -38,3 +38,16 @@ async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db)):
     if not success:
         raise HTTPException(status_code=404, detail="Tag not found")
     return {"message": "Tag deleted successfully"}
+
+@router.post("/{tag_id}/restore", response_model=Tag)
+async def restore_tag(tag_id: int, db: AsyncSession = Depends(get_db)):
+    success = await crud_tag.restore_tag(db, tag_id=tag_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Deleted tag not found")
+    db_tag = await crud_tag.get_tag(db, tag_id=tag_id)
+    return db_tag
+
+@router.get("/deleted/", response_model=list[Tag])
+async def read_deleted_tags(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+    tags = await crud_tag.get_deleted_tags(db, skip=skip, limit=limit)
+    return tags

@@ -38,7 +38,30 @@ async def update_user(db: AsyncSession, user_id: int, user_update: UserUpdate) -
 async def delete_user(db: AsyncSession, user_id: int) -> bool:
     db_user = await get_user(db, user_id)
     if db_user:
-        await db.delete(db_user)
+        db_user.soft_delete()
         await db.commit()
         return True
     return False
+
+async def restore_user(db: AsyncSession, user_id: int) -> bool:
+    """Restaura un usuario eliminado"""
+    result = await db.execute(
+        select(User).filter(User.id == user_id)
+    )
+    db_user = result.scalar_one_or_none()
+    if db_user and db_user.is_deleted:
+        db_user.restore()
+        await db.commit()
+        return True
+    return False
+
+async def get_deleted_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[User]:
+    """Obtiene usuarios eliminados"""
+    result = await db.execute(
+        select(User)
+        .filter(User.is_deleted == True)
+        .offset(skip)
+        .limit(limit)
+        .order_by(User.deleted_at.desc())
+    )
+    return result.scalars().all()

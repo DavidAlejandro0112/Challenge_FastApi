@@ -27,7 +27,7 @@ async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
-@router.put("/{user_id}", response_model=User)
+@router.patch("/{user_id}", response_model=User)
 async def update_user(user_id: int, user: UserUpdate, db: AsyncSession = Depends(get_db)):
     db_user = await crud_user.update_user(db, user_id=user_id, user_update=user)
     if db_user is None:
@@ -41,7 +41,22 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
     return {"message": "User deleted successfully"}
 
+@router.post("/{user_id}/restore", response_model=User)
+async def restore_user(user_id: int, db: AsyncSession = Depends(get_db)):
+    """Restaura un usuario eliminado"""
+    success = await crud_user.restore_user(db, user_id=user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Deleted user not found")
+    db_user = await crud_user.get_user(db, user_id=user_id)
+    return db_user
+
 @router.get("/{user_id}/posts", response_model=list[Post])
 async def read_user_posts(user_id: int, skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
     posts = await crud_post.get_posts_by_user(db, user_id=user_id, skip=skip, limit=limit)
     return posts
+
+@router.get("/deleted/", response_model=list[User])
+async def read_deleted_users(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+    """Obtiene usuarios eliminados"""
+    users = await crud_user.get_deleted_users(db, skip=skip, limit=limit)
+    return users

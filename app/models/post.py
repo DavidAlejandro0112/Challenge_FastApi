@@ -1,7 +1,7 @@
 from sqlalchemy import String, Text, Integer, ForeignKey, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.models.base import Base, TimestampMixin
-from typing import List, Optional
+from app.models.base import Base, TimestampMixin, SoftDeleteMixin
+from typing import List
 
 # Tabla intermedia para relación muchos a muchos Post-Tag
 post_tags = Table(
@@ -11,7 +11,7 @@ post_tags = Table(
     Column("tag_id", Integer, ForeignKey("tags.id"), primary_key=True),
 )
 
-class Post(Base, TimestampMixin):
+class Post(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "posts"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
@@ -19,13 +19,13 @@ class Post(Base, TimestampMixin):
     content: Mapped[str] = mapped_column(Text)
     author_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
     
-    # Relación muchos a uno con User (usar string)
+
     author: Mapped["User"] = relationship("User", back_populates="posts")
     
-    # Relación uno a muchos con Comment (usar string)
+
     comments: Mapped[List["Comment"]] = relationship("Comment", back_populates="post", cascade="all, delete-orphan")
     
-    # Relación muchos a muchos con Tag (usar string)
+  
     tags: Mapped[List["Tag"]] = relationship("Tag", secondary=post_tags, back_populates="posts")
     
     def __repr__(self):
@@ -39,7 +39,7 @@ class Comment(Base, TimestampMixin):
     author_name: Mapped[str] = mapped_column(String(100))
     post_id: Mapped[int] = mapped_column(Integer, ForeignKey("posts.id"))
     
-    # Relación muchos a uno con Post (usar string)
+ 
     post: Mapped["Post"] = relationship("Post", back_populates="comments")
     
     def __repr__(self):
