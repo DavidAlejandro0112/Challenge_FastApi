@@ -1,0 +1,24 @@
+# Entorno virtual
+venv/
+env/
+.venv/
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Variables de entorno
+.env
+
+# Archivos de base de datos
+*.db
+*.sqlite
+
+# Logs
+*.log
+
+# Alembic
+alembic/versions/*.py
+!alembic/versions/__init__.py
