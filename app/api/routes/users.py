@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-# from app.core.dependencies import get_current_active_user
+from app.core.deps import require_admin
 from app.crud import user as crud_user
 from app.crud import post as crud_post
 from app.schemas.common import PaginatedResponse
@@ -43,26 +43,26 @@ async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
 async def create_user(
     user: UserCreate, 
     db: AsyncSession = Depends(get_db),
-    # current_user = Depends(crud_user.get_current_active_user)
+    current_user = Depends(crud_user.get_current_active_user)
 ):
     db_user = await crud_user.get_user_by_username(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
     return await crud_user.create_user(db=db, user=user)
 
-@router.put("/{user_id}", response_model=User)
+@router.patch("/{user_id}", response_model=User)
 async def update_user(
     user_id: int, 
     user: UserUpdate, 
     db: AsyncSession = Depends(get_db),
-    # current_user = Depends(crud_user.get_current_active_user)
+    current_user = Depends(crud_user.get_current_active_user)
 ):
     # Verificar permisos (solo el propio usuario o admin)
-    # if current_user.id != user_id:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not enough permissions"
-    #     )
+    if current_user.id != user_id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
     
     db_user = await crud_user.update_user(db, user_id=user_id, user_update=user)
     if db_user is None:
@@ -73,19 +73,15 @@ async def update_user(
 async def delete_user(
     user_id: int, 
     db: AsyncSession = Depends(get_db),
-    # current_user = Depends(crud_user.get_current_active_user)
+    current_user = Depends(crud_user.get_current_active_user)
 ):
-    """
-    Eliminar usuario (protegido)
     
-    Solo usuarios autenticados pueden eliminar usuarios.
-    """
     # Verificar permisos (solo el propio usuario o admin)
-    # if current_user.id != user_id:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_403_FORBIDDEN,
-    #         detail="Not enough permissions"
-    #     )
+    if current_user.id != user_id and not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions"
+        )
     
     success = await crud_user.delete_user(db, user_id=user_id)
     if not success:
@@ -96,10 +92,15 @@ async def delete_user(
 async def restore_user(
     user_id: int, 
     db: AsyncSession = Depends(get_db),
-    # current_user = Depends(crud_user.get_current_active_user)
+    current_user = Depends(crud_user.get_current_active_user)
 ):
     # Verificar permisos (solo administradores)
-    # Aquí puedes agregar lógica para verificar si es admin
+    current_user = require_admin(current_user)
+    # if current_user.is_admin == False:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not enough permissions"
+    #     )
     
     success = await crud_user.restore_user(db, user_id=user_id)
     if not success:
@@ -123,7 +124,13 @@ async def read_deleted_users(
     skip: int = 0, 
     limit: int = 10, 
     db: AsyncSession = Depends(get_db),
-    # current_user = Depends(crud_user.get_current_active_user)
+    current_user = Depends(crud_user.get_current_active_user)
 ):
+    """Obtener usuarios eliminados (solo administradores)"""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operation not allowed: admin privileges required"
+        )
     users = await crud_user.get_deleted_users(db, skip=skip, limit=limit)
     return users

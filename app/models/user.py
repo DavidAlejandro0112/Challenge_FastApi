@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer
+from sqlalchemy import String, Integer, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, TimestampMixin, SoftDeleteMixin
 from typing import List, TYPE_CHECKING, Optional
@@ -15,6 +15,8 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     full_name: Mapped[str] = mapped_column(String(100))
     bio: Mapped[Optional[str]] = mapped_column(String(500)) 
     hashed_password: Mapped[str] = mapped_column(String(255))
+    is_active:Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin:Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Relación uno a muchos con Post
     posts: Mapped[List["Post"]] = relationship(
