@@ -23,9 +23,9 @@ async def get_posts(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[P
         .filter(Post.is_deleted == False)
         .offset(skip)
         .limit(limit)
-        .order_by(Post.created_at.desc())
+        .order_by(Post.created_at.desc().all())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 async def get_posts_by_user(db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100) -> List[Post]:
     result = await db.execute(
@@ -36,7 +36,7 @@ async def get_posts_by_user(db: AsyncSession, user_id: int, skip: int = 0, limit
         .limit(limit)
         .order_by(Post.created_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 async def create_post(db: AsyncSession, post: PostCreate, author_id: int) -> Post:
     db_post = Post(**post.model_dump(), author_id=author_id)
@@ -86,7 +86,7 @@ async def get_deleted_posts(db: AsyncSession, skip: int = 0, limit: int = 100) -
         .limit(limit)
         .order_by(Post.deleted_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 async def create_comment(db: AsyncSession, comment: CommentCreate, post_id: int) -> Comment:
     db_comment = Comment(**comment.model_dump(), post_id=post_id)
@@ -172,4 +172,4 @@ async def get_deleted_comments(db: AsyncSession, skip: int = 0, limit: int = 100
         .limit(limit)
         .order_by(Comment.deleted_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())

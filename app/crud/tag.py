@@ -30,7 +30,7 @@ async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Ta
         .limit(limit)
         .order_by(Tag.created_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 async def create_tag(db: AsyncSession, tag: TagCreate) -> Tag:
     db_tag = Tag(**tag.model_dump())
@@ -80,4 +80,4 @@ async def get_deleted_tags(db: AsyncSession, skip: int = 0, limit: int = 100) ->
         .limit(limit)
         .order_by(Tag.deleted_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())

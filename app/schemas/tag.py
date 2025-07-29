@@ -1,4 +1,3 @@
-# app/schemas/tag.py
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -29,5 +28,4 @@ class TagWithPosts(TagInDBBase):
 
 # Importación circular al final del archivo
 from app.schemas.post import Post
-
 TagWithPosts.model_rebuild()
