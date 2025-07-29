@@ -19,6 +19,4 @@ __pycache__/
 # Logs
 *.log
 
-# Alembic
-alembic/versions/*.py
-!alembic/versions/__init__.py
+
