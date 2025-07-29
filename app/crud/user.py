@@ -10,7 +10,7 @@ from typing import List, Optional
 from jose import JWTError, jwt
 from app.core.config import settings
 from app.schemas.auth import TokenData
-from app.core.security import verify_password
+from app.core.security import get_password_hash, verify_password
 from datetime import datetime
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -41,9 +41,11 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> O
     if not verify_password(password, user.hashed_password):
         return None
     return user
-
 async def create_user(db: AsyncSession, user: UserCreate) -> User:
-    db_user = User(**user.model_dump())
+    # Excluye el campo 'password' y agrega el 'hashed_password'
+    user_data = user.model_dump(exclude={"password"})
+    hashed_password = get_password_hash(user.password)  # Asegúrate de importar get_password_hash
+    db_user = User(**user_data, hashed_password=hashed_password)
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
