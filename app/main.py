@@ -2,18 +2,21 @@ from fastapi import FastAPI
 from app.api.main import api_router
 from app.core.database import engine, Base
 import asyncio
+from app.middleware.logging import ResponseTimeMiddleware 
+
 
 app = FastAPI(title="FastAPI Blog API", version="1.0.0")
 
+# middleware
+app.add_middleware(ResponseTimeMiddleware)
+
+
 app.include_router(api_router, prefix="/api")
 
-# @app.get("/")
-# async def root():
-#     return {"message": "Welcome to FastAPI Blog API"}
+@app.get("/")
+async def root():
+    return {"message": "Welcome to FastAPI Blog API"}
 
-# @app.on_event("startup")
-# async def startup_event():
-#     pass
 
 if __name__ == "__main__":
     import uvicorn

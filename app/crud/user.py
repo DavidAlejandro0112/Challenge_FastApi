@@ -10,6 +10,7 @@ from typing import List, Optional
 from jose import JWTError, jwt
 from app.core.config import settings
 from app.schemas.auth import TokenData
+from app.core.security import verify_password
 from datetime import datetime
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -31,6 +32,15 @@ async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
 async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[User]:
     result = await db.execute(select(User).filter(User.is_deleted == False).offset(skip).limit(limit))
     return list(result.scalars().all())
+
+async def authenticate_user(db: AsyncSession, username: str, password: str) -> Optional[User]:
+    """Autentica un usuario verificando su contraseña"""
+    user = await get_user_by_username(db, username=username)
+    if not user:
+        return None
+    if not verify_password(password, user.hashed_password):
+        return None
+    return user
 
 async def create_user(db: AsyncSession, user: UserCreate) -> User:
     db_user = User(**user.model_dump())

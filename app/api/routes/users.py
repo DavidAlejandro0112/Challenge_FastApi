@@ -11,7 +11,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 # Endpoints públicos (sin autenticación)
 @router.get("/", response_model=list[User])
-async def read_users(skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db)):
+async def read_users(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db)):
     """Obtener lista de usuarios (público)"""
     users = await crud_user.get_users(db, skip=skip, limit=limit)
     return users
@@ -29,7 +29,7 @@ async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
 async def create_user(
     user: UserCreate, 
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(crud_user.get_current_active_user)
+    # current_user = Depends(crud_user.get_current_active_user)
 ):
     db_user = await crud_user.get_user_by_username(db, username=user.username)
     if db_user:
@@ -41,14 +41,14 @@ async def update_user(
     user_id: int, 
     user: UserUpdate, 
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(crud_user.get_current_active_user)
+    # current_user = Depends(crud_user.get_current_active_user)
 ):
     # Verificar permisos (solo el propio usuario o admin)
-    if current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+    # if current_user.id != user_id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not enough permissions"
+    #     )
     
     db_user = await crud_user.update_user(db, user_id=user_id, user_update=user)
     if db_user is None:
@@ -59,7 +59,7 @@ async def update_user(
 async def delete_user(
     user_id: int, 
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(crud_user.get_current_active_user)
+    # current_user = Depends(crud_user.get_current_active_user)
 ):
     """
     Eliminar usuario (protegido)
@@ -67,11 +67,11 @@ async def delete_user(
     Solo usuarios autenticados pueden eliminar usuarios.
     """
     # Verificar permisos (solo el propio usuario o admin)
-    if current_user.id != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+    # if current_user.id != user_id:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN,
+    #         detail="Not enough permissions"
+    #     )
     
     success = await crud_user.delete_user(db, user_id=user_id)
     if not success:
@@ -82,7 +82,7 @@ async def delete_user(
 async def restore_user(
     user_id: int, 
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(crud_user.get_current_active_user)
+    # current_user = Depends(crud_user.get_current_active_user)
 ):
     # Verificar permisos (solo administradores)
     # Aquí puedes agregar lógica para verificar si es admin
@@ -97,7 +97,7 @@ async def restore_user(
 async def read_user_posts(
     user_id: int, 
     skip: int = 0, 
-    limit: int = 100, 
+    limit: int = 10, 
     db: AsyncSession = Depends(get_db)
 ):
     """Obtener posts de un usuario (público)"""
@@ -107,9 +107,9 @@ async def read_user_posts(
 @router.get("/deleted/", response_model=list[User])
 async def read_deleted_users(
     skip: int = 0, 
-    limit: int = 100, 
+    limit: int = 10, 
     db: AsyncSession = Depends(get_db),
-    current_user = Depends(crud_user.get_current_active_user)
+    # current_user = Depends(crud_user.get_current_active_user)
 ):
     users = await crud_user.get_deleted_users(db, skip=skip, limit=limit)
     return users
