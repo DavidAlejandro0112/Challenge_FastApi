@@ -1,11 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
-from sqlalchemy import func, and_
+from sqlalchemy import  func, and_
 from app.models.tag import Tag
 from app.models.post import Post
 from app.schemas.tag import TagCreate, TagUpdate
-from typing import List, Optional
+from typing import List, Optional, Tuple
+
+
 
 async def get_tag(db: AsyncSession, tag_id: int) -> Optional[Tag]:
     result = await db.execute(
@@ -81,3 +83,52 @@ async def get_deleted_tags(db: AsyncSession, skip: int = 0, limit: int = 100) ->
         .order_by(Tag.deleted_at.desc())
     )
     return list(result.scalars().all())
+
+
+
+
+async def get_tags_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Tag], int]:
+    """Obtiene una lista paginada de tags activos"""
+    # Consulta para obtener los tags
+    result = await db.execute(
+        select(Tag)
+        .filter(Tag.is_deleted == False)
+        .offset(skip)
+        .limit(limit)
+        .order_by(Tag.created_at.desc())
+    )
+    # Convertir explícitamente a List[Tag] para evitar errores de tipado
+    tags: List[Tag] = list(result.scalars().all())
+    
+    # Consulta para obtener el conteo total
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Tag)
+        .filter(Tag.is_deleted == False)
+    )
+    total = count_result.scalar_one()
+    
+    return (tags, total)
+
+async def get_deleted_tags_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Tag], int]:
+    """Obtiene una lista paginada de tags eliminados"""
+    # Consulta para obtener los tags eliminados
+    result = await db.execute(
+        select(Tag)
+        .filter(Tag.is_deleted == True)
+        .offset(skip)
+        .limit(limit)
+        .order_by(Tag.deleted_at.desc())
+    )
+    # Convertir explícitamente a List[Tag]
+    tags: List[Tag] = list(result.scalars().all())
+    
+    # Consulta para obtener el conteo total
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Tag)
+        .filter(Tag.is_deleted == True)
+    )
+    total = count_result.scalar_one()
+    
+    return (tags, total)

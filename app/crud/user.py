@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.schemas.auth import TokenData
 from app.core.security import get_password_hash, verify_password
 from datetime import datetime
+from typing import List, Tuple
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
@@ -29,10 +30,31 @@ async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     )
     return result.scalar_one_or_none()
 
-async def get_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[User]:
-    result = await db.execute(select(User).filter(User.is_deleted == False).offset(skip).limit(limit))
-    return list(result.scalars().all())
-
+async def get_users_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[User], int]:
+     try:
+        # Consulta para obtener los usuarios
+        result = await db.execute(
+            select(User)
+            .filter(User.is_deleted == False)
+            .offset(skip)
+            .limit(limit)
+            .order_by(User.created_at.desc())
+        )
+        users = list(result.scalars().all())
+        
+        # Consulta para obtener el conteo total
+        count_result = await db.execute(
+            select(func.count())
+            .select_from(User)
+            .filter(User.is_deleted == False)
+        )
+        total = count_result.scalar_one()
+        
+        # Devolver explícitamente la tupla al final
+        return (users, total)
+     except Exception as e:
+        print(f"Error en get_users_paginated: {e}")
+        return ([], 0)
 async def authenticate_user(db: AsyncSession, username: str, password: str) -> Optional[User]:
     """Autentica un usuario verificando su contraseña"""
     user = await get_user_by_username(db, username=username)

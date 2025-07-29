@@ -1,20 +1,34 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 # from app.core.dependencies import get_current_active_user
 from app.crud import user as crud_user
 from app.crud import post as crud_post
+from app.schemas.common import PaginatedResponse
 from app.schemas.user import User, UserCreate, UserUpdate, UserWithPosts
 from app.schemas.post import Post
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 # Endpoints públicos (sin autenticación)
-@router.get("/", response_model=list[User])
-async def read_users(skip: int = 0, limit: int = 10, db: AsyncSession = Depends(get_db)):
+@router.get("/", response_model=PaginatedResponse[User])
+async def read_users(skip: int = Query(0, ge=0, description="Número de registros a saltar"),
+    limit: int = Query(10, ge=1, le=1000, description="Número máximo de registros a devolver"),
+    db: AsyncSession = Depends(get_db)
+):
     """Obtener lista de usuarios (público)"""
-    users = await crud_user.get_users(db, skip=skip, limit=limit)
-    return users
+    db_users, total = await crud_user.get_users_paginated(db, skip=skip, limit=limit)
+    pydantic_users = [User.model_validate(db_user) for db_user in db_users]
+    page = skip // limit + 1 if limit > 0 else 1
+    size = len(pydantic_users)
+    total_pages = (total + limit - 1) // limit if limit > 0 else 1
+    return PaginatedResponse[User](
+        items=pydantic_users, 
+        total=total,          
+        page=page,            
+        size=size,            
+        total_pages=total_pages 
+    )
 
 @router.get("/{user_id}", response_model=UserWithPosts)
 async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):

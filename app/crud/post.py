@@ -6,7 +6,7 @@ from app.models.post import Post, Comment
 from app.models.user import User
 from app.models.tag import Tag
 from app.schemas.post import PostCreate, PostUpdate, CommentCreate, CommentUpdate
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 async def get_post(db: AsyncSession, post_id: int) -> Optional[Post]:
     result = await db.execute(
@@ -173,3 +173,56 @@ async def get_deleted_comments(db: AsyncSession, skip: int = 0, limit: int = 100
         .order_by(Comment.deleted_at.desc())
     )
     return list(result.scalars().all())
+
+async def get_posts_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Post], int]:
+    """Obtiene una lista paginada de posts activos"""
+    # Consulta para obtener los posts
+    result = await db.execute(
+        select(Post)
+        .options(selectinload(Post.author), selectinload(Post.comments), selectinload(Post.tags))
+        .filter(Post.is_deleted == False)
+        .offset(skip)
+        .limit(limit)
+        .order_by(Post.created_at.desc())
+    )
+   
+    posts: List[Post] = list(result.scalars().all())
+    
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(Post)
+        .filter(Post.is_deleted == False)
+    )
+    total = count_result.scalar_one()
+    
+    return (posts, total)
+
+async def get_deleted_posts_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Post], int]:
+    try:
+        # Consulta para obtener los posts eliminados
+        result = await db.execute(
+            select(Post)
+            .filter(Post.is_deleted == True)  # Solo posts eliminados
+            .offset(skip)
+            .limit(limit)
+            .order_by(Post.deleted_at.desc())  # Ordenar por fecha de eliminación
+        )
+        # Convertir explícitamente a List[Post] para evitar errores de tipado
+        posts: List[Post] = list(result.scalars().all())
+        
+        # Consulta para obtener el conteo total de posts eliminados
+        count_result = await db.execute(
+            select(func.count())
+            .select_from(Post)
+            .filter(Post.is_deleted == True)
+        )
+        total = count_result.scalar_one()
+        
+        # Devolver explícitamente la tupla con tipos correctos
+        return (posts, total)
+    
+    except Exception as e:
+        # Opcional: Loggear el error
+        print(f"Error en get_deleted_posts_paginated: {e}")
+        # Devolver valores por defecto en caso de error
+        return ([], 0)
