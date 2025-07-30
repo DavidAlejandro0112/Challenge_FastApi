@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.security import OAuth2PasswordBearer
 from app.api.main import api_router
 from app.middleware.logging import ResponseTimeMiddleware 
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -9,6 +10,8 @@ from slowapi.middleware import SlowAPIMiddleware
 
 
 app = FastAPI(title="FastAPI Blog API", version="1.0.0")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter

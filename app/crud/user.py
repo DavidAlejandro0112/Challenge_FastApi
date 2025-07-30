@@ -19,10 +19,6 @@ from sqlalchemy.orm import selectinload
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 
-# ========================
-# FUNCIONES DE LECTURA
-# ========================
-
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
     """Obtiene un usuario por ID (incluye eliminados)"""
     try:

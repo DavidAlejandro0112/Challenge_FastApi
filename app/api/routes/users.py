@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request,Security
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.crud import user as crud_user
@@ -129,7 +129,7 @@ async def create_user(
 ):
     """
     Crea un nuevo usuario. Acceso público.
-    Rate limiting para prevenir abuso.
+   
     """
     try:
         logger.info(f"Intento de registro: username='{user.username}', email='{user.email}'")
@@ -249,7 +249,7 @@ async def restore_user(
     request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    admin: UserModel = Depends(require_admin)
+    admin: UserModel = Security(require_admin)
 ):
     """
     Restaura un usuario eliminado. Solo accesible para administradores.
@@ -304,7 +304,7 @@ async def read_deleted_users(
     skip: int = 0,
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
-    admin: UserModel = Depends(require_admin)
+    admin: UserModel = Security(require_admin)
 ):
     """
     Obtiene usuarios eliminados. Solo accesible para administradores.
