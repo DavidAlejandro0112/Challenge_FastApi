@@ -1,0 +1,58 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: challengebd
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - fastapi_network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi-blog
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - fastapi_network
+    volumes:
+      - ./app:/app/app # Montar el código de la aplicación
+    command: >
+      sh -c "while ! pg_isready -h db -p 5432 -U ${POSTGRES_USER}; do
+        echo 'Esperando a PostgreSQL...'
+        sleep 2
+      done
+      && alembic upgrade head
+      && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+# Volúmenes
+volumes:
+  postgres_data:
+
+# Redes
+networks:
+  fastapi_network:
+    driver: bridge

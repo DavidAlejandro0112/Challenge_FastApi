@@ -1,11 +1,13 @@
-from sqlalchemy import Boolean, DateTime, String, Text, Integer, ForeignKey, Table, Column
+from sqlalchemy import Boolean, String, Text, Integer, ForeignKey, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.user import User
-    from app.models.tag import Tag  # Evita importaciones circulares
+    from app.models.tag import Tag  
+    from app.models.comment import Comment
+    
 
 
 # Tabla intermedia para relación muchos a muchos Post-Tag
@@ -38,16 +40,3 @@ class Post(Base, TimestampMixin, SoftDeleteMixin):
     def __repr__(self):
         return f"<Post(id={self.id}, title='{self.title}')>"
 
-class Comment(Base, TimestampMixin,SoftDeleteMixin):
-    __tablename__ = "comments"
-    
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    content: Mapped[str] = mapped_column(Text)
-    author_name: Mapped[str] = mapped_column(String(100))
-    post_id: Mapped[int] = mapped_column(Integer, ForeignKey("posts.id"))
-    
-    # Relación muchos a uno con Post (usar string)
-    post: Mapped["Post"] = relationship("Post", back_populates="comments")
-    
-    def __repr__(self):
-        return f"<Comment(id={self.id}, content='{self.content[:50]}...')>"

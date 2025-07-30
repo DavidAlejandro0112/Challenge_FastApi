@@ -1,6 +1,5 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from app.models import Base  
 from app.core.config import settings
 
 # Crear motor asíncrono
@@ -17,9 +16,6 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
-# Base para modelos
-Base = declarative_base()
-
 # Dependencia para obtener sesión de DB
 async def get_db():
     async with AsyncSessionLocal() as session:
@@ -27,3 +23,4 @@ async def get_db():
             yield session
         finally:
             await session.close()
+

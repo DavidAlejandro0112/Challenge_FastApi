@@ -18,39 +18,26 @@ class PostInDBBase(PostBase):
     author_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    
+
     class Config:
         from_attributes = True
 
 class Post(PostInDBBase):
     pass
 
+
 class PostWithRelations(PostInDBBase):
-    author: "User"
+    author: "User"           # ← Cadena
     comments: List["Comment"] = []
-    tags: List["Tag"] = []
+    tags: List["Tag"] = []   # ← Cadena
 
-class CommentBase(BaseModel):
-    content: str
-    author_name: str
-
-class CommentCreate(CommentBase):
-    pass
-
-class CommentUpdate(BaseModel):
-    content: Optional[str] = None
-    author_name: Optional[str] = None
-
-class Comment(CommentBase):
-    id: int
-    post_id: int
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    
     class Config:
         from_attributes = True
 
-# Importaciones circulares
+# Importaciones circulares al final
 from app.schemas.user import User
+from app.schemas.comment import Comment
 from app.schemas.tag import Tag
+
+# Reconstruye después de importar
 PostWithRelations.model_rebuild()

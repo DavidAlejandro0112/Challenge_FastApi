@@ -1,86 +1,143 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.security import create_access_token, verify_password
+from app.core.logging import logger
 from app.crud import user as crud_user
 from app.schemas.auth import UserAuth, UserLogin, Token, UserInDB
 from app.schemas.user import UserCreate
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
+# Rate limiting por IP
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
+
+
 @router.post("/register", response_model=UserInDB, status_code=status.HTTP_201_CREATED)
-async def register_user(user: UserAuth, db: AsyncSession = Depends(get_db)):
-    """
-    Registrar un nuevo usuario
+@limiter.limit("5/minute")  
+async def register_user(
+    request: Request,  # Necesario para slowapi
+    user: UserAuth,
+    db: AsyncSession = Depends(get_db)
+):
     
-    Crea una nueva cuenta de usuario en el sistema.
-    
-    ## Parámetros:
-    - **user**: Objeto con los datos del usuario a registrar
-    
-    ## Respuesta:
-    - Retorna los datos del usuario creado (sin la contraseña)
-    
-    ## Errores:
-    - **400**: Username o email ya registrado
-    """
-    # Verificar si el username ya existe
-    db_user = await crud_user.get_user_by_username(db, username=user.username)
-    if db_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Username already registered"
+    try:
+        logger.info(f"Intento de registro: username='{user.username}', email='{user.email}'")
+
+        # Verificar si el username ya existe
+        db_user = await crud_user.get_user_by_username(db, username=user.username)
+        if db_user:
+            logger.warning(f"Registro fallido: username ya existe '{user.username}'")
+            raise HTTPException(
+                status_code=400,
+                detail="El nombre de usuario ya está registrado"
+            )
+
+        # Verificar si el email ya existe
+        db_user = await crud_user.get_user_by_email(db, email=user.email)
+        if db_user:
+            logger.warning(f"Registro fallido: email ya existe '{user.email}'")
+            raise HTTPException(
+                status_code=400,
+                detail="El correo electrónico ya está registrado"
+            )
+
+        # Crear usuario
+        user_create = UserCreate(
+            username=user.username,
+            email=user.email,
+            full_name=user.full_name,
+            password=user.password,
+            is_active=True,
+            is_admin=False
         )
-    
-    # Verificar si el email ya existe
-    db_user = await crud_user.get_user_by_email(db, email=user.email)
-    if db_user:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
+        db_user = await crud_user.create_user(db=db, user=user_create)
+
+        logger.info(f"Usuario registrado exitosamente: ID={db_user.id}, username='{db_user.username}'")
+        
+        return UserInDB(
+            id=db_user.id,
+            username=db_user.username,
+            email=db_user.email,
+            full_name=db_user.full_name
         )
-    
-    # Crear usuario
-    user_create = UserCreate(
-        username=user.username,
-        email=user.email,
-        full_name=user.full_name,
-        password=user.password
-    )
-    db_user = await crud_user.create_user(db=db, user=user_create)
-    
-    return UserInDB(
-        id=db_user.id,
-        username=db_user.username,
-        email=db_user.email,
-        full_name=db_user.full_name
-    )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error inesperado durante registro: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+
+
 
 @router.post("/login", response_model=Token)
-async def login_user(user: UserLogin, db: AsyncSession = Depends(get_db)):
-    db_user = await crud_user.authenticate_user(db, user.username, user.password)
-    if not db_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+@limiter.limit("5/minute")  
+async def login_user(
+    request: Request,  # Necesario para slowapi
+    user: UserLogin,
+    db: AsyncSession = Depends(get_db)
+):
     
-    # Crear token de acceso
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": db_user.username}, expires_delta=access_token_expires
+    try:
+        logger.info(f"Intento de login: username='{user.username}'")
+
+        db_user = await crud_user.authenticate_user(db, user.username, user.password)
+        if not db_user:
+            logger.warning(f"Login fallido: credenciales inválidas para '{user.username}'")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Nombre de usuario o contraseña incorrectos",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        if not db_user.is_active:
+            logger.warning(f"Login fallido: usuario inactivo '{user.username}'")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Usuario inactivo"
+            )
+
+        # Crear token de acceso
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": db_user.username},  # Mejor usar {"sub": str(db_user.id)} (más seguro)
+            expires_delta=access_token_expires
         )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+
+        logger.info(f"Login exitoso: username='{db_user.username}', ID={db_user.id}")
+        return {
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error inesperado durante login: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
+
+
+
 
 @router.get("/me", response_model=UserInDB)
-async def read_users_me(current_user = Depends(crud_user.get_current_active_user)):
-    return UserInDB(
-        id=current_user.id,
-        username=current_user.username,
-        email=current_user.email,
-        full_name=current_user.full_name
-    )
+async def read_users_me(
+    current_user = Depends(crud_user.get_current_active_user)
+):
+    
+    try:
+        logger.info(f"Acceso a /me por usuario: ID={current_user.id}, username='{current_user.username}'")
+        
+        return UserInDB(
+            id=current_user.id,
+            username=current_user.username,
+            email=current_user.email,
+            full_name=current_user.full_name
+        )
+    except Exception as e:
+        logger.error(f"Error al obtener perfil del usuario {current_user.id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error al obtener perfil")
