@@ -7,6 +7,9 @@ from app.schemas.common import PaginatedResponse
 from app.schemas.user import User, UserCreate, UserUpdate, UserWithPosts
 from app.schemas.post import Post
 from app.models.user import User as UserModel
+from app.core.security import oauth2_scheme
+from fastapi import Security
+from app.core.deps import get_current_active_user
 from app.core.logging import logger
 from app.core.deps import require_admin
 from slowapi import Limiter
@@ -57,7 +60,7 @@ async def read_users(
 @limiter.limit("100/minute")
 async def read_user_me(
     request: Request,
-    current_user: UserModel = Depends(crud_user.get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user)
 ):
     """
     Obtiene el perfil del usuario autenticado.
@@ -125,7 +128,6 @@ async def create_user(
     request: Request,
     user: UserCreate,
     db: AsyncSession = Depends(get_db)
-    # No requiere autenticación
 ):
     """
     Crea un nuevo usuario. Acceso público.
@@ -164,7 +166,7 @@ async def update_user(
     user_id: int,
     user: UserUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(crud_user.get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user)
 ):
     """
     Actualiza un usuario. Solo el propio usuario o un admin puede hacerlo.
@@ -212,7 +214,7 @@ async def delete_user(
     request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(crud_user.get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user)
 ):
     """
     Elimina un usuario (soft delete). Solo el propio usuario o un admin puede hacerlo.

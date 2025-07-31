@@ -1,22 +1,19 @@
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import and_, func
 from sqlalchemy.exc import IntegrityError
 from app.core.database import get_db
+from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.post import Post  
 from app.schemas.user import UserCreate, UserUpdate
-from app.schemas.auth import TokenData
 from app.core.security import get_password_hash, verify_password
 from app.core.logging import logger
 from typing import List, Optional, Tuple
-from jose import JWTError, jwt
-from app.core.config import settings
 from sqlalchemy.orm import selectinload
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+
 
 
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
@@ -266,34 +263,6 @@ async def get_deleted_users(db: AsyncSession, skip: int = 0, limit: int = 100) -
 # ========================
 # AUTENTICACIÓN Y SEGURIDAD
 # ========================
-
-async def get_current_user(
-    db: AsyncSession = Depends(get_db),
-    token: str = Depends(oauth2_scheme)
-) -> User:
-    """Obtiene el usuario actual desde el token JWT"""
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="No se pudieron validar las credenciales",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        sub = payload.get("sub")
-        if not sub or not isinstance(sub, str):
-              raise credentials_exception
-        username: str = sub
-        if not username:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-
-    user = await get_user_by_username(db, username=token_data.username)
-    if not user or user.is_deleted:
-        raise credentials_exception
-    return user
-
 
 async def get_current_active_user(
     current_user: User = Depends(get_current_user)

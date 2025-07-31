@@ -3,13 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timedelta
 from app.core.database import get_db
 from app.core.config import settings
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token
 from app.core.logging import logger
 from app.crud import user as crud_user
-from app.schemas.auth import UserAuth, UserLogin, Token, UserInDB
+from app.schemas.auth import UserAuth, Token, UserInDB
 from app.schemas.user import UserCreate
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from fastapi.security import OAuth2PasswordRequestForm
 
 # Rate limiting por IP
 limiter = Limiter(key_func=get_remote_address)
@@ -20,7 +21,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 @router.post("/register", response_model=UserInDB, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")  
 async def register_user(
-    request: Request,  # Necesario para slowapi
+    request: Request,  
     user: UserAuth,
     db: AsyncSession = Depends(get_db)
 ):
@@ -79,16 +80,19 @@ async def register_user(
 @limiter.limit("5/minute")  
 async def login_user(
     request: Request,  # Necesario para slowapi
-    user: UserLogin,
+    form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
     
-    try:
-        logger.info(f"Intento de login: username='{user.username}'")
+    username = form_data.username
+    password = form_data.password
 
-        db_user = await crud_user.authenticate_user(db, user.username, user.password)
+    try:
+        logger.info(f"Intento de login: username='{username}'")
+
+        db_user = await crud_user.authenticate_user(db, username, password)
         if not db_user:
-            logger.warning(f"Login fallido: credenciales inválidas para '{user.username}'")
+            logger.warning(f"Login fallido: credenciales inválidas para '{username}'")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Nombre de usuario o contraseña incorrectos",
@@ -96,7 +100,7 @@ async def login_user(
             )
 
         if not db_user.is_active:
-            logger.warning(f"Login fallido: usuario inactivo '{user.username}'")
+            logger.warning(f"Login fallido: usuario inactivo '{username}'")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Usuario inactivo"
@@ -105,7 +109,7 @@ async def login_user(
         # Crear token de acceso
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": db_user.username},  # Mejor usar {"sub": str(db_user.id)} (más seguro)
+            data={"sub": db_user.username},  
             expires_delta=access_token_expires
         )
 
@@ -124,20 +128,3 @@ async def login_user(
 
 
 
-@router.get("/me", response_model=UserInDB)
-async def read_users_me(
-    current_user = Depends(crud_user.get_current_active_user)
-):
-    
-    try:
-        logger.info(f"Acceso a /me por usuario: ID={current_user.id}, username='{current_user.username}'")
-        
-        return UserInDB(
-            id=current_user.id,
-            username=current_user.username,
-            email=current_user.email,
-            full_name=current_user.full_name
-        )
-    except Exception as e:
-        logger.error(f"Error al obtener perfil del usuario {current_user.id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al obtener perfil")

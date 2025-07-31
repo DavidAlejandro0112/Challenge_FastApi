@@ -11,7 +11,6 @@ from slowapi.middleware import SlowAPIMiddleware
 
 app = FastAPI(title="FastAPI Blog API", version="1.0.0")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
@@ -21,6 +20,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 # middleware
 app.add_middleware(ResponseTimeMiddleware)
+
 
 
 app.include_router(api_router, prefix="/api")

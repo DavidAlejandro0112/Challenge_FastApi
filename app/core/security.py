@@ -3,6 +3,9 @@ from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from app.core.config import settings
 from typing import Optional
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Contexto para hashing de contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
