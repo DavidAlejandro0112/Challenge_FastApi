@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Request,Security
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request, Security
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.crud import user as crud_user
@@ -26,7 +26,7 @@ async def read_users(
     request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=1000),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Obtiene una lista paginada de usuarios activos.
@@ -34,7 +34,9 @@ async def read_users(
     """
     try:
         logger.info(f"Obteniendo usuarios (skip={skip}, limit={limit})")
-        db_users, total = await crud_user.get_users_paginated(db, skip=skip, limit=limit)
+        db_users, total = await crud_user.get_users_paginated(
+            db, skip=skip, limit=limit
+        )
 
         pydantic_users = [User.model_validate(db_user) for db_user in db_users]
         page = skip // limit + 1 if limit > 0 else 1
@@ -47,40 +49,35 @@ async def read_users(
             total=total,
             page=page,
             size=size,
-            total_pages=total_pages
+            total_pages=total_pages,
         )
     except Exception as e:
         logger.error(f"Error al obtener usuarios paginados: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al obtener usuarios")
 
 
-
-
 @router.get("/me", response_model=User)
 @limiter.limit("100/minute")
 async def read_user_me(
-    request: Request,
-    current_user: UserModel = Depends(get_current_active_user)
+    request: Request, current_user: UserModel = Depends(get_current_active_user)
 ):
     """
     Obtiene el perfil del usuario autenticado.
     Requiere autenticación.
     """
     try:
-        logger.info(f"Acceso a /me por usuario: ID={current_user.id}, username='{current_user.username}'")
+        logger.info(
+            f"Acceso a /me por usuario: ID={current_user.id}, username='{current_user.username}'"
+        )
         return User.model_validate(current_user)
     except Exception as e:
         logger.error(f"Error al obtener perfil del usuario {current_user.id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al obtener perfil")
 
 
-
 @router.get("/admin-only")
 @limiter.limit("10/minute")
-async def admin_only(
-    request: Request,
-    admin: UserModel = Depends(require_admin)
-):
+async def admin_only(request: Request, admin: UserModel = Depends(require_admin)):
     """
     Endpoint de ejemplo para verificar permisos de administrador.
     Solo accesible para administradores.
@@ -95,14 +92,9 @@ async def admin_only(
         raise HTTPException(status_code=500, detail="Error interno")
 
 
-
 @router.get("/{user_id}", response_model=UserWithPosts)
 @limiter.limit("50/minute")
-async def read_user(
-    request: Request,
-    user_id: int,
-    db: AsyncSession = Depends(get_db)
-):
+async def read_user(request: Request, user_id: int, db: AsyncSession = Depends(get_db)):
     """
     Obtiene un usuario por ID con sus posts asociados.
     Acceso público.
@@ -121,33 +113,38 @@ async def read_user(
         raise HTTPException(status_code=500, detail="Error al obtener el usuario")
 
 
-
 @router.post("/", response_model=User, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/hour")  # Evita spam de registros
 async def create_user(
-    request: Request,
-    user: UserCreate,
-    db: AsyncSession = Depends(get_db)
+    request: Request, user: UserCreate, db: AsyncSession = Depends(get_db)
 ):
     """
     Crea un nuevo usuario. Acceso público.
-   
+
     """
     try:
-        logger.info(f"Intento de registro: username='{user.username}', email='{user.email}'")
+        logger.info(
+            f"Intento de registro: username='{user.username}', email='{user.email}'"
+        )
 
         db_user = await crud_user.get_user_by_username(db, username=user.username)
         if db_user:
             logger.warning(f"Registro fallido: username ya existe '{user.username}'")
-            raise HTTPException(status_code=400, detail="El nombre de usuario ya está registrado")
+            raise HTTPException(
+                status_code=400, detail="El nombre de usuario ya está registrado"
+            )
 
         db_user = await crud_user.get_user_by_email(db, email=user.email)
         if db_user:
             logger.warning(f"Registro fallido: email ya existe '{user.email}'")
-            raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
+            raise HTTPException(
+                status_code=400, detail="El correo electrónico ya está registrado"
+            )
 
         db_user = await crud_user.create_user(db=db, user=user)
-        logger.info(f"Usuario registrado exitosamente: ID={db_user.id}, username='{db_user.username}'")
+        logger.info(
+            f"Usuario registrado exitosamente: ID={db_user.id}, username='{db_user.username}'"
+        )
         return User.model_validate(db_user)
 
     except HTTPException:
@@ -157,8 +154,6 @@ async def create_user(
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
-
-
 @router.patch("/{user_id}", response_model=User)
 @limiter.limit("10/hour")
 async def update_user(
@@ -166,31 +161,39 @@ async def update_user(
     user_id: int,
     user: UserUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user),
 ):
     """
     Actualiza un usuario. Solo el propio usuario o un admin puede hacerlo.
     """
     try:
-        logger.info(f"Usuario {current_user.id} intenta actualizar usuario: ID={user_id}")
+        logger.info(
+            f"Usuario {current_user.id} intenta actualizar usuario: ID={user_id}"
+        )
 
         # Verificar permisos
         if current_user.id != user_id and not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó editar usuario {user_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó editar usuario {user_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para editar este usuario"
+                detail="No tienes permiso para editar este usuario",
             )
 
         # Verificar duplicados si se actualiza username o email
         if user.username:
             existing = await crud_user.get_user_by_username(db, username=user.username)
             if existing and existing.id != user_id:
-                raise HTTPException(status_code=400, detail="El nombre de usuario ya está en uso")
+                raise HTTPException(
+                    status_code=400, detail="El nombre de usuario ya está en uso"
+                )
         if user.email:
             existing = await crud_user.get_user_by_email(db, email=user.email)
             if existing and existing.id != user_id:
-                raise HTTPException(status_code=400, detail="El correo electrónico ya está en uso")
+                raise HTTPException(
+                    status_code=400, detail="El correo electrónico ya está en uso"
+                )
 
         db_user = await crud_user.update_user(db, user_id=user_id, user_update=user)
         if not db_user:
@@ -207,14 +210,13 @@ async def update_user(
         raise HTTPException(status_code=500, detail="Error al actualizar el usuario")
 
 
-
 @router.delete("/{user_id}", status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
 async def delete_user(
     request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user),
 ):
     """
     Elimina un usuario (soft delete). Solo el propio usuario o un admin puede hacerlo.
@@ -224,10 +226,12 @@ async def delete_user(
 
         # Verificar permisos
         if current_user.id != user_id and not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó eliminar usuario {user_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó eliminar usuario {user_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para eliminar este usuario"
+                detail="No tienes permiso para eliminar este usuario",
             )
 
         success = await crud_user.delete_user(db, user_id=user_id)
@@ -243,15 +247,13 @@ async def delete_user(
         raise HTTPException(status_code=500, detail="Error al eliminar el usuario")
 
 
-
-
 @router.post("/{user_id}/restore", response_model=User)
 @limiter.limit("5/hour")
 async def restore_user(
     request: Request,
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    admin: UserModel = Security(require_admin)
+    admin: UserModel = Security(require_admin),
 ):
     """
     Restaura un usuario eliminado. Solo accesible para administradores.
@@ -262,7 +264,9 @@ async def restore_user(
         success = await crud_user.restore_user(db, user_id=user_id)
         if not success:
             logger.warning(f"Usuario eliminado no encontrado: ID={user_id}")
-            raise HTTPException(status_code=404, detail="Usuario eliminado no encontrado")
+            raise HTTPException(
+                status_code=404, detail="Usuario eliminado no encontrado"
+            )
 
         db_user = await crud_user.get_user(db, user_id=user_id)
         logger.info(f"Usuario restaurado: ID={user_id}")
@@ -275,7 +279,6 @@ async def restore_user(
         raise HTTPException(status_code=500, detail="Error al restaurar el usuario")
 
 
-
 @router.get("/{user_id}/posts", response_model=list[Post])
 @limiter.limit("50/minute")
 async def read_user_posts(
@@ -283,7 +286,7 @@ async def read_user_posts(
     user_id: int,
     skip: int = 0,
     limit: int = 10,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Obtiene los posts de un usuario.
@@ -291,12 +294,15 @@ async def read_user_posts(
     """
     try:
         logger.info(f"Obteniendo posts del usuario: ID={user_id}")
-        posts = await crud_post.get_posts_by_user(db, user_id=user_id, skip=skip, limit=limit)
+        posts = await crud_post.get_posts_by_user(
+            db, user_id=user_id, skip=skip, limit=limit
+        )
         return posts
     except Exception as e:
         logger.error(f"Error al obtener posts del usuario {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al obtener los posts del usuario")
-
+        raise HTTPException(
+            status_code=500, detail="Error al obtener los posts del usuario"
+        )
 
 
 @router.get("/deleted/", response_model=list[User])
@@ -306,7 +312,7 @@ async def read_deleted_users(
     skip: int = 0,
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
-    admin: UserModel = Security(require_admin)
+    admin: UserModel = Security(require_admin),
 ):
     """
     Obtiene usuarios eliminados. Solo accesible para administradores.
@@ -320,4 +326,6 @@ async def read_deleted_users(
         raise
     except Exception as e:
         logger.error(f"Error al obtener usuarios eliminados: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al obtener usuarios eliminados")
+        raise HTTPException(
+            status_code=500, detail="Error al obtener usuarios eliminados"
+        )

@@ -19,6 +19,7 @@ from slowapi.util import get_remote_address
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/posts", tags=["posts"])
 
+
 @router.post("/", response_model=Post, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/hour")  # Evita spam de publicaciones
 async def create_post(
@@ -26,26 +27,32 @@ async def create_post(
     post: PostCreate,
     author_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Crea un nuevo post. Solo el usuario autenticado puede crear posts.
     El `author_id` debe coincidir con el usuario autenticado o ser admin.
     """
     try:
-        logger.info(f"Usuario {current_user.id} intenta crear post para author_id={author_id}")
+        logger.info(
+            f"Usuario {current_user.id} intenta crear post para author_id={author_id}"
+        )
 
         # Verificar que el author_id sea válido
         if author_id != current_user.id and not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó crear post como {author_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó crear post como {author_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No puedes crear un post en nombre de otro usuario"
+                detail="No puedes crear un post en nombre de otro usuario",
             )
 
         db_user = await crud_user.get_user(db, user_id=author_id)
         if not db_user:
-            logger.warning(f"Intento de crear post con usuario no existente: ID={author_id}")
+            logger.warning(
+                f"Intento de crear post con usuario no existente: ID={author_id}"
+            )
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
         db_post = await crud_post.create_post(db=db, post=post, author_id=author_id)
@@ -64,8 +71,10 @@ async def create_post(
 async def read_posts(
     request: Request,
     skip: int = Query(0, ge=0, description="Número de registros a saltar"),
-    limit: int = Query(10, ge=1, le=1000, description="Número máximo de registros a devolver"),
-    db: AsyncSession = Depends(get_db)
+    limit: int = Query(
+        10, ge=1, le=1000, description="Número máximo de registros a devolver"
+    ),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Obtiene una lista paginada de posts activos.
@@ -73,7 +82,9 @@ async def read_posts(
     """
     try:
         logger.info(f"Obteniendo posts (skip={skip}, limit={limit})")
-        db_posts, total = await crud_post.get_posts_paginated(db, skip=skip, limit=limit)
+        db_posts, total = await crud_post.get_posts_paginated(
+            db, skip=skip, limit=limit
+        )
 
         pydantic_posts = [Post.model_validate(db_post) for db_post in db_posts]
         page = skip // limit + 1 if limit > 0 else 1
@@ -86,7 +97,7 @@ async def read_posts(
             total=total,
             page=page,
             size=size,
-            total_pages=total_pages
+            total_pages=total_pages,
         )
     except Exception as e:
         logger.error(f"Error al obtener posts paginados: {str(e)}")
@@ -95,11 +106,7 @@ async def read_posts(
 
 @router.get("/{post_id}", response_model=PostWithRelations)
 @limiter.limit("50/minute")
-async def read_post(
-    request: Request,
-    post_id: int,
-    db: AsyncSession = Depends(get_db)
-):
+async def read_post(request: Request, post_id: int, db: AsyncSession = Depends(get_db)):
     """
     Obtiene un post por ID con todas sus relaciones (autor, comentarios, tags).
     Acceso público.
@@ -125,7 +132,7 @@ async def update_post(
     post_id: int,
     post: PostUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Actualiza un post. Solo el autor o un admin puede hacerlo.
@@ -140,13 +147,17 @@ async def update_post(
 
         # Verificar permisos
         if db_post.author_id != current_user.id and not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó editar post {post_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó editar post {post_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para editar este post"
+                detail="No tienes permiso para editar este post",
             )
 
-        updated_post = await crud_post.update_post(db, post_id=post_id, post_update=post)
+        updated_post = await crud_post.update_post(
+            db, post_id=post_id, post_update=post
+        )
         if not updated_post:
             raise HTTPException(status_code=500, detail="Error al actualizar el post")
 
@@ -166,7 +177,7 @@ async def delete_post(
     request: Request,
     post_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Elimina un post (soft delete). Solo el autor o un admin puede hacerlo.
@@ -181,10 +192,12 @@ async def delete_post(
 
         # Verificar permisos
         if db_post.author_id != current_user.id and not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó eliminar post {post_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó eliminar post {post_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para eliminar este post"
+                detail="No tienes permiso para eliminar este post",
             )
 
         success = await crud_post.delete_post(db, post_id=post_id)
@@ -203,13 +216,14 @@ async def delete_post(
 # RESTAURAR POST
 # ========================
 
+
 @router.post("/{post_id}/restore", response_model=Post)
 @limiter.limit("5/hour")
 async def restore_post(
     request: Request,
     post_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Restaura un post eliminado. Solo un admin puede hacerlo.
@@ -218,10 +232,12 @@ async def restore_post(
         logger.info(f"Usuario {current_user.id} intenta restaurar post: ID={post_id}")
 
         if not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó restaurar post {post_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó restaurar post {post_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo los administradores pueden restaurar posts"
+                detail="Solo los administradores pueden restaurar posts",
             )
 
         success = await crud_post.restore_post(db, post_id=post_id)
@@ -244,6 +260,7 @@ async def restore_post(
 # LISTAR POSTS ELIMINADOS
 # ========================
 
+
 @router.get("/deleted/", response_model=PaginatedResponse[Post])
 @limiter.limit("10/minute")
 async def read_deleted_posts(
@@ -251,7 +268,7 @@ async def read_deleted_posts(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Obtiene posts eliminados. Solo accesible para administradores.
@@ -260,13 +277,17 @@ async def read_deleted_posts(
         logger.info(f"Usuario {current_user.id} intenta acceder a posts eliminados")
 
         if not current_user.is_admin:
-            logger.warning(f"Acceso denegado a posts eliminados para usuario {current_user.id}")
+            logger.warning(
+                f"Acceso denegado a posts eliminados para usuario {current_user.id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Acceso denegado: solo administradores"
+                detail="Acceso denegado: solo administradores",
             )
 
-        db_posts, total = await crud_post.get_deleted_posts_paginated(db, skip=skip, limit=limit)
+        db_posts, total = await crud_post.get_deleted_posts_paginated(
+            db, skip=skip, limit=limit
+        )
         pydantic_posts = [Post.model_validate(db_post) for db_post in db_posts]
         page = skip // limit + 1 if limit > 0 else 1
         size = len(pydantic_posts)
@@ -278,7 +299,7 @@ async def read_deleted_posts(
             total=total,
             page=page,
             size=size,
-            total_pages=total_pages
+            total_pages=total_pages,
         )
     except HTTPException:
         raise
@@ -287,9 +308,9 @@ async def read_deleted_posts(
         raise HTTPException(status_code=500, detail="Error al obtener posts eliminados")
 
 
-
-
-@router.post("/{post_id}/comments", response_model=Comment, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{post_id}/comments", response_model=Comment, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("20/hour")
 async def create_comment_for_post(
     request: Request,
@@ -297,7 +318,7 @@ async def create_comment_for_post(
     author_id: int,
     comment: CommentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Crea un comentario en un post. El autor del comentario es el usuario autenticado.
@@ -314,11 +335,7 @@ async def create_comment_for_post(
             raise HTTPException(status_code=404, detail="Post no encontrado")
 
         db_comment = await crud_comment.create_comment(
-            db=db,
-            comment=comment,
-            post_id=post_id,
-            author_id=current_user.id 
-            
+            db=db, comment=comment, post_id=post_id, author_id=current_user.id
         )
         logger.info(f"Comentario creado: ID={db_comment.id}, Post={post_id}")
         return db_comment
@@ -334,6 +351,7 @@ async def create_comment_for_post(
 # AÑADIR TAG A POST
 # ========================
 
+
 @router.post("/{post_id}/tags/{tag_id}", response_model=PostWithRelations)
 @limiter.limit("10/hour")
 async def add_tag_to_post(
@@ -341,13 +359,15 @@ async def add_tag_to_post(
     post_id: int,
     tag_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Añade un tag a un post. Solo el autor del post o un admin puede hacerlo.
     """
     try:
-        logger.info(f"Usuario {current_user.id} intenta añadir tag {tag_id} al post {post_id}")
+        logger.info(
+            f"Usuario {current_user.id} intenta añadir tag {tag_id} al post {post_id}"
+        )
 
         db_post = await crud_post.get_post(db, post_id=post_id)
         if not db_post:
@@ -356,16 +376,20 @@ async def add_tag_to_post(
 
         # Verificar permisos
         if db_post.author_id != current_user.id and not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó editar tags del post {post_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó editar tags del post {post_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para editar los tags de este post"
+                detail="No tienes permiso para editar los tags de este post",
             )
 
         success = await crud_post.add_tag_to_post(db, post_id=post_id, tag_id=tag_id)
         if not success:
             logger.warning(f"No se pudo añadir tag {tag_id} al post {post_id}")
-            raise HTTPException(status_code=404, detail="Tag no encontrado o ya asociado")
+            raise HTTPException(
+                status_code=404, detail="Tag no encontrado o ya asociado"
+            )
 
         db_post = await crud_post.get_post(db, post_id=post_id)
         logger.info(f"Tag {tag_id} añadido al post {post_id}")
@@ -382,6 +406,7 @@ async def add_tag_to_post(
 # REMOVER TAG DE POST
 # ========================
 
+
 @router.delete("/{post_id}/tags/{tag_id}", response_model=PostWithRelations)
 @limiter.limit("10/hour")
 async def remove_tag_from_post(
@@ -389,13 +414,15 @@ async def remove_tag_from_post(
     post_id: int,
     tag_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Remueve un tag de un post. Solo el autor del post o un admin puede hacerlo.
     """
     try:
-        logger.info(f"Usuario {current_user.id} intenta remover tag {tag_id} del post {post_id}")
+        logger.info(
+            f"Usuario {current_user.id} intenta remover tag {tag_id} del post {post_id}"
+        )
 
         db_post = await crud_post.get_post(db, post_id=post_id)
         if not db_post:
@@ -404,16 +431,22 @@ async def remove_tag_from_post(
 
         # Verificar permisos
         if db_post.author_id != current_user.id and not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó editar tags del post {post_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó editar tags del post {post_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="No tienes permiso para editar los tags de este post"
+                detail="No tienes permiso para editar los tags de este post",
             )
 
-        success = await crud_post.remove_tag_from_post(db, post_id=post_id, tag_id=tag_id)
+        success = await crud_post.remove_tag_from_post(
+            db, post_id=post_id, tag_id=tag_id
+        )
         if not success:
             logger.warning(f"No se pudo remover tag {tag_id} del post {post_id}")
-            raise HTTPException(status_code=404, detail="Tag no encontrado o no asociado")
+            raise HTTPException(
+                status_code=404, detail="Tag no encontrado o no asociado"
+            )
 
         db_post = await crud_post.get_post(db, post_id=post_id)
         logger.info(f"Tag {tag_id} removido del post {post_id}")

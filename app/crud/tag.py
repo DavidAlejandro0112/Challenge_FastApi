@@ -10,6 +10,7 @@ from app.core.logging import logger
 from typing import List, Optional, Tuple
 from fastapi import HTTPException
 
+
 async def get_tag(db: AsyncSession, tag_id: int) -> Optional[Tag]:
     """Obtiene un tag por ID con sus posts asociados"""
     try:
@@ -26,16 +27,20 @@ async def get_tag(db: AsyncSession, tag_id: int) -> Optional[Tag]:
         logger.error(f"Error al obtener tag {tag_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
+
 async def get_tag_by_name(db: AsyncSession, name: str) -> Optional[Tag]:
     """Obtiene un tag por nombre (case-insensitive)"""
     try:
         result = await db.execute(
-            select(Tag).filter(and_(func.lower(Tag.name) == name.lower(), Tag.is_deleted == False))
+            select(Tag).filter(
+                and_(func.lower(Tag.name) == name.lower(), Tag.is_deleted == False)
+            )
         )
         return result.scalar_one_or_none()
     except Exception as e:
         logger.error(f"Error al buscar tag por nombre '{name}': {str(e)}")
         raise HTTPException(status_code=500, detail="Error al buscar tag")
+
 
 async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Tag]:
     """Obtiene una lista de tags activos"""
@@ -54,6 +59,7 @@ async def get_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Ta
     except Exception as e:
         logger.error(f"Error al obtener tags: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al obtener tags")
+
 
 async def create_tag(db: AsyncSession, tag: TagCreate) -> Tag:
     """Crea un nuevo tag"""
@@ -80,7 +86,10 @@ async def create_tag(db: AsyncSession, tag: TagCreate) -> Tag:
         logger.error(f"Error inesperado al crear tag: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al crear tag")
 
-async def update_tag(db: AsyncSession, tag_id: int, tag_update: TagUpdate) -> Optional[Tag]:
+
+async def update_tag(
+    db: AsyncSession, tag_id: int, tag_update: TagUpdate
+) -> Optional[Tag]:
     """Actualiza un tag existente"""
     db_tag = await get_tag(db, tag_id)
     if not db_tag:
@@ -92,7 +101,9 @@ async def update_tag(db: AsyncSession, tag_id: int, tag_update: TagUpdate) -> Op
         if tag_update.name and tag_update.name != db_tag.name:
             existing = await get_tag_by_name(db, tag_update.name)
             if existing:
-                raise HTTPException(status_code=400, detail="El nombre del tag ya existe")
+                raise HTTPException(
+                    status_code=400, detail="El nombre del tag ya existe"
+                )
 
         update_data = tag_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
@@ -114,6 +125,7 @@ async def update_tag(db: AsyncSession, tag_id: int, tag_update: TagUpdate) -> Op
         logger.error(f"Error al actualizar tag {tag_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al actualizar tag")
 
+
 async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
     """Elimina un tag (soft delete)"""
     db_tag = await get_tag(db, tag_id)
@@ -130,6 +142,7 @@ async def delete_tag(db: AsyncSession, tag_id: int) -> bool:
         await db.rollback()
         logger.error(f"Error al eliminar tag {tag_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al eliminar tag")
+
 
 async def restore_tag(db: AsyncSession, tag_id: int) -> bool:
     """Restaura un tag eliminado"""
@@ -152,7 +165,10 @@ async def restore_tag(db: AsyncSession, tag_id: int) -> bool:
         logger.error(f"Error al restaurar tag {tag_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al restaurar tag")
 
-async def get_deleted_tags(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Tag]:
+
+async def get_deleted_tags(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> List[Tag]:
     """Obtiene tags eliminados"""
     try:
         result = await db.execute(
@@ -169,7 +185,10 @@ async def get_deleted_tags(db: AsyncSession, skip: int = 0, limit: int = 100) ->
         logger.error(f"Error al obtener tags eliminados: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al obtener tags eliminados")
 
-async def get_tags_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Tag], int]:
+
+async def get_tags_paginated(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> Tuple[List[Tag], int]:
     """Obtiene una lista paginada de tags activos"""
     try:
         result = await db.execute(
@@ -192,7 +211,10 @@ async def get_tags_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) 
         logger.error(f"Error en get_tags_paginated: {e}")
         return ([], 0)
 
-async def get_deleted_tags_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Tag], int]:
+
+async def get_deleted_tags_paginated(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> Tuple[List[Tag], int]:
     """Obtiene una lista paginada de tags eliminados"""
     try:
         result = await db.execute(

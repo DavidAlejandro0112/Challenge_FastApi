@@ -1,4 +1,3 @@
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -16,7 +15,11 @@ async def get_post(db: AsyncSession, post_id: int) -> Optional[Post]:
     try:
         result = await db.execute(
             select(Post)
-            .options(selectinload(Post.author), selectinload(Post.comments), selectinload(Post.tags))
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments),
+                selectinload(Post.tags),
+            )
             .filter(and_(Post.id == post_id, Post.is_deleted == False))
         )
         post = result.scalar_one_or_none()
@@ -27,15 +30,20 @@ async def get_post(db: AsyncSession, post_id: int) -> Optional[Post]:
         logger.error(f"Error al obtener post {post_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
+
 async def get_posts(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Post]:
     try:
         result = await db.execute(
             select(Post)
-            .options(selectinload(Post.author), selectinload(Post.comments), selectinload(Post.tags))
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments),
+                selectinload(Post.tags),
+            )
             .filter(Post.is_deleted == False)
             .offset(skip)
             .limit(limit)
-            .order_by(Post.created_at.desc())  
+            .order_by(Post.created_at.desc())
         )
         posts = list(result.scalars().all())
         logger.info(f"Obtenidos {len(posts)} posts (skip={skip}, limit={limit})")
@@ -44,11 +52,18 @@ async def get_posts(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[P
         logger.error(f"Error al obtener posts: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al obtener posts")
 
-async def get_posts_by_user(db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100) -> List[Post]:
+
+async def get_posts_by_user(
+    db: AsyncSession, user_id: int, skip: int = 0, limit: int = 100
+) -> List[Post]:
     try:
         result = await db.execute(
             select(Post)
-            .options(selectinload(Post.author), selectinload(Post.comments), selectinload(Post.tags))
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments),
+                selectinload(Post.tags),
+            )
             .filter(and_(Post.author_id == user_id, Post.is_deleted == False))
             .offset(skip)
             .limit(limit)
@@ -59,7 +74,10 @@ async def get_posts_by_user(db: AsyncSession, user_id: int, skip: int = 0, limit
         return posts
     except Exception as e:
         logger.error(f"Error al obtener posts del usuario {user_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al obtener posts del usuario")
+        raise HTTPException(
+            status_code=500, detail="Error al obtener posts del usuario"
+        )
+
 
 async def create_post(db: AsyncSession, post: PostCreate, author_id: int) -> Post:
     try:
@@ -72,13 +90,18 @@ async def create_post(db: AsyncSession, post: PostCreate, author_id: int) -> Pos
     except IntegrityError as e:
         await db.rollback()
         logger.error(f"Error de integridad al crear post: {str(e)}")
-        raise HTTPException(status_code=400, detail="Error de integridad (relación inválida)")
+        raise HTTPException(
+            status_code=400, detail="Error de integridad (relación inválida)"
+        )
     except Exception as e:
         await db.rollback()
         logger.error(f"Error al crear post: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al crear post")
 
-async def update_post(db: AsyncSession, post_id: int, post_update: PostUpdate) -> Optional[Post]:
+
+async def update_post(
+    db: AsyncSession, post_id: int, post_update: PostUpdate
+) -> Optional[Post]:
     db_post = await get_post(db, post_id)
     if not db_post:
         logger.warning(f"Intento de actualizar post no encontrado: ID={post_id}")
@@ -97,6 +120,7 @@ async def update_post(db: AsyncSession, post_id: int, post_update: PostUpdate) -
         logger.error(f"Error al actualizar post {post_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al actualizar post")
 
+
 async def delete_post(db: AsyncSession, post_id: int) -> bool:
     db_post = await get_post(db, post_id)
     if not db_post:
@@ -111,6 +135,7 @@ async def delete_post(db: AsyncSession, post_id: int) -> bool:
         await db.rollback()
         logger.error(f"Error al eliminar post {post_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al eliminar post")
+
 
 async def restore_post(db: AsyncSession, post_id: int) -> bool:
     try:
@@ -128,7 +153,10 @@ async def restore_post(db: AsyncSession, post_id: int) -> bool:
         logger.error(f"Error al restaurar post {post_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al restaurar post")
 
-async def get_deleted_posts(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Post]:
+
+async def get_deleted_posts(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> List[Post]:
     try:
         result = await db.execute(
             select(Post)
@@ -144,7 +172,10 @@ async def get_deleted_posts(db: AsyncSession, skip: int = 0, limit: int = 100) -
         logger.error(f"Error al obtener posts eliminados: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al obtener posts eliminados")
 
-async def get_deleted_posts_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Post], int]:
+
+async def get_deleted_posts_paginated(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> Tuple[List[Post], int]:
     try:
         result = await db.execute(
             select(Post)
@@ -160,17 +191,26 @@ async def get_deleted_posts_paginated(db: AsyncSession, skip: int = 0, limit: in
         )
         total = count_result.scalar_one()
 
-        logger.info(f"Paginación de posts eliminados: {skip}-{skip+limit}, total={total}")
+        logger.info(
+            f"Paginación de posts eliminados: {skip}-{skip+limit}, total={total}"
+        )
         return (posts, total)
     except Exception as e:
         logger.error(f"Error en get_deleted_posts_paginated: {e}")
         return ([], 0)
 
-async def get_posts_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[Post], int]:
+
+async def get_posts_paginated(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> Tuple[List[Post], int]:
     try:
         result = await db.execute(
             select(Post)
-            .options(selectinload(Post.author), selectinload(Post.comments), selectinload(Post.tags))
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments),
+                selectinload(Post.tags),
+            )
             .filter(Post.is_deleted == False)
             .offset(skip)
             .limit(limit)
@@ -188,9 +228,6 @@ async def get_posts_paginated(db: AsyncSession, skip: int = 0, limit: int = 100)
     except Exception as e:
         logger.error(f"Error en get_posts_paginated: {e}")
         return ([], 0)
-
-
-
 
 
 async def add_tag_to_post(db: AsyncSession, post_id: int, tag_id: int) -> bool:
@@ -217,6 +254,7 @@ async def add_tag_to_post(db: AsyncSession, post_id: int, tag_id: int) -> bool:
         await db.rollback()
         logger.error(f"Error al añadir tag {tag_id} al post {post_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al añadir tag")
+
 
 async def remove_tag_from_post(db: AsyncSession, post_id: int, tag_id: int) -> bool:
     db_post = await get_post(db, post_id)

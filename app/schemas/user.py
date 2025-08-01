@@ -3,6 +3,7 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime
 
+
 class UserBase(BaseModel):
     username: str
     email: EmailStr
@@ -10,8 +11,10 @@ class UserBase(BaseModel):
     is_active: bool = True
     is_admin: bool = False
 
+
 class UserCreate(UserBase):
     password: str
+
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
@@ -21,6 +24,7 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     is_admin: Optional[bool] = None
 
+
 class UserInDBBase(UserBase):
     id: int
     created_at: datetime
@@ -29,8 +33,10 @@ class UserInDBBase(UserBase):
     class Config:
         from_attributes = True
 
+
 class User(UserInDBBase):
     pass
+
 
 class UserWithPosts(BaseModel):
     id: int
@@ -45,6 +51,7 @@ class UserWithPosts(BaseModel):
 
     class Config:
         from_attributes = True
+
 
 # Importaciones circulares al final
 from app.schemas.post import Post

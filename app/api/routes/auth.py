@@ -17,25 +17,23 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
-
 @router.post("/register", response_model=UserInDB, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/minute")  
+@limiter.limit("5/minute")
 async def register_user(
-    request: Request,  
-    user: UserAuth,
-    db: AsyncSession = Depends(get_db)
+    request: Request, user: UserAuth, db: AsyncSession = Depends(get_db)
 ):
-    
+
     try:
-        logger.info(f"Intento de registro: username='{user.username}', email='{user.email}'")
+        logger.info(
+            f"Intento de registro: username='{user.username}', email='{user.email}'"
+        )
 
         # Verificar si el username ya existe
         db_user = await crud_user.get_user_by_username(db, username=user.username)
         if db_user:
             logger.warning(f"Registro fallido: username ya existe '{user.username}'")
             raise HTTPException(
-                status_code=400,
-                detail="El nombre de usuario ya está registrado"
+                status_code=400, detail="El nombre de usuario ya está registrado"
             )
 
         # Verificar si el email ya existe
@@ -43,8 +41,7 @@ async def register_user(
         if db_user:
             logger.warning(f"Registro fallido: email ya existe '{user.email}'")
             raise HTTPException(
-                status_code=400,
-                detail="El correo electrónico ya está registrado"
+                status_code=400, detail="El correo electrónico ya está registrado"
             )
 
         # Crear usuario
@@ -54,17 +51,19 @@ async def register_user(
             full_name=user.full_name,
             password=user.password,
             is_active=True,
-            is_admin=False
+            is_admin=False,
         )
         db_user = await crud_user.create_user(db=db, user=user_create)
 
-        logger.info(f"Usuario registrado exitosamente: ID={db_user.id}, username='{db_user.username}'")
-        
+        logger.info(
+            f"Usuario registrado exitosamente: ID={db_user.id}, username='{db_user.username}'"
+        )
+
         return UserInDB(
             id=db_user.id,
             username=db_user.username,
             email=db_user.email,
-            full_name=db_user.full_name
+            full_name=db_user.full_name,
         )
 
     except HTTPException:
@@ -74,16 +73,14 @@ async def register_user(
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
-
-
 @router.post("/login", response_model=Token)
-@limiter.limit("5/minute")  
+@limiter.limit("5/minute")
 async def login_user(
     request: Request,  # Necesario para slowapi
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    
+
     username = form_data.username
     password = form_data.password
 
@@ -102,29 +99,21 @@ async def login_user(
         if not db_user.is_active:
             logger.warning(f"Login fallido: usuario inactivo '{username}'")
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Usuario inactivo"
+                status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo"
             )
 
         # Crear token de acceso
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": db_user.username, "id": str(db_user.id)},  
-            expires_delta=access_token_expires
+            data={"sub": db_user.username, "id": str(db_user.id)},
+            expires_delta=access_token_expires,
         )
 
         logger.info(f"Login exitoso: username='{db_user.username}', ID={db_user.id}")
-        return {
-            "access_token": access_token,
-            "token_type": "bearer"
-        }
+        return {"access_token": access_token, "token_type": "bearer"}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error inesperado durante login: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
-
-
-
-

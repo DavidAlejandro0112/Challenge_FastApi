@@ -25,38 +25,49 @@ async def get_comment(db: AsyncSession, comment_id: int) -> Optional[Comment]:
         logger.error(f"Error al obtener comentario {comment_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
-async def create_comment(db: AsyncSession, comment: CommentCreate, post_id: int, author_id: int) -> Comment:
+
+async def create_comment(
+    db: AsyncSession, comment: CommentCreate, post_id: int, author_id: int
+) -> Comment:
     """
     Crea un nuevo comentario asociado a un post y un autor.
     """
     try:
         db_comment = Comment(
-            **comment.model_dump(),  
-            post_id=post_id,
-            author_id=author_id    
-            
+            **comment.model_dump(), post_id=post_id, author_id=author_id
         )
         db.add(db_comment)
         await db.commit()
         await db.refresh(db_comment)
-        logger.info(f"Comentario creado: ID={db_comment.id}, Post={post_id}, Autor={author_id}")
+        logger.info(
+            f"Comentario creado: ID={db_comment.id}, Post={post_id}, Autor={author_id}"
+        )
         return db_comment
 
     except IntegrityError as e:
-        
+
         await db.rollback()
-        logger.error(f"Error de integridad al crear comentario en post {post_id} por autor {author_id}: {str(e)}")
-        
+        logger.error(
+            f"Error de integridad al crear comentario en post {post_id} por autor {author_id}: {str(e)}"
+        )
+
         raise HTTPException(
             status_code=400,
-            detail="Error de integridad (el post podría no existir o datos inválidos)"
+            detail="Error de integridad (el post podría no existir o datos inválidos)",
         )
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error inesperado al crear comentario en post {post_id} por autor {author_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno al crear el comentario")
+        logger.error(
+            f"Error inesperado al crear comentario en post {post_id} por autor {author_id}: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=500, detail="Error interno al crear el comentario"
+        )
 
-async def update_comment(db: AsyncSession, comment_id: int, comment_update: CommentUpdate) -> Optional[Comment]:
+
+async def update_comment(
+    db: AsyncSession, comment_id: int, comment_update: CommentUpdate
+) -> Optional[Comment]:
     db_comment = await get_comment(db, comment_id)
     if not db_comment:
         return None
@@ -74,6 +85,7 @@ async def update_comment(db: AsyncSession, comment_id: int, comment_update: Comm
         logger.error(f"Error al actualizar comentario {comment_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al actualizar comentario")
 
+
 async def delete_comment(db: AsyncSession, comment_id: int) -> bool:
     db_comment = await get_comment(db, comment_id)
     if not db_comment:
@@ -87,6 +99,7 @@ async def delete_comment(db: AsyncSession, comment_id: int) -> bool:
         await db.rollback()
         logger.error(f"Error al eliminar comentario {comment_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al eliminar comentario")
+
 
 async def restore_comment(db: AsyncSession, comment_id: int) -> bool:
     result = await db.execute(select(Comment).filter(Comment.id == comment_id))

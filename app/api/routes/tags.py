@@ -15,14 +15,13 @@ limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/tags", tags=["tags"])
 
 
-
 @router.post("/", response_model=Tag, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/hour")
 async def create_tag(
     request: Request,
     tag: TagCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Crea una nueva etiqueta. Solo accesible para administradores.
@@ -31,10 +30,12 @@ async def create_tag(
         logger.info(f"Usuario {current_user.id} intenta crear tag: {tag.name}")
 
         if not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó crear tag")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó crear tag"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo los administradores pueden crear etiquetas"
+                detail="Solo los administradores pueden crear etiquetas",
             )
 
         db_tag = await crud_tag.get_tag_by_name(db, name=tag.name)
@@ -59,7 +60,7 @@ async def read_tags(
     request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=1000),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Obtiene una lista paginada de tags activos.
@@ -80,21 +81,16 @@ async def read_tags(
             total=total,
             page=page,
             size=size,
-            total_pages=total_pages
+            total_pages=total_pages,
         )
     except Exception as e:
         logger.error(f"Error al obtener tags paginados: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al obtener etiquetas")
 
 
-
 @router.get("/{tag_id}", response_model=TagWithPosts)
 @limiter.limit("50/minute")
-async def read_tag(
-    request: Request,
-    tag_id: int,
-    db: AsyncSession = Depends(get_db)
-):
+async def read_tag(request: Request, tag_id: int, db: AsyncSession = Depends(get_db)):
     """
     Obtiene un tag por ID con sus posts asociados.
     Acceso público.
@@ -120,7 +116,7 @@ async def update_tag(
     tag_id: int,
     tag: TagUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Actualiza un tag. Solo accesible para administradores.
@@ -129,10 +125,12 @@ async def update_tag(
         logger.info(f"Usuario {current_user.id} intenta actualizar tag: ID={tag_id}")
 
         if not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó editar tag {tag_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó editar tag {tag_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo los administradores pueden editar etiquetas"
+                detail="Solo los administradores pueden editar etiquetas",
             )
 
         db_tag = await crud_tag.update_tag(db, tag_id=tag_id, tag_update=tag)
@@ -150,14 +148,13 @@ async def update_tag(
         raise HTTPException(status_code=500, detail="Error al actualizar la etiqueta")
 
 
-
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("5/hour")
 async def delete_tag(
     request: Request,
     tag_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Elimina un tag (soft delete). Solo accesible para administradores.
@@ -166,10 +163,12 @@ async def delete_tag(
         logger.info(f"Usuario {current_user.id} intenta eliminar tag: ID={tag_id}")
 
         if not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó eliminar tag {tag_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó eliminar tag {tag_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo los administradores pueden eliminar etiquetas"
+                detail="Solo los administradores pueden eliminar etiquetas",
             )
 
         success = await crud_tag.delete_tag(db, tag_id=tag_id)
@@ -185,14 +184,13 @@ async def delete_tag(
         raise HTTPException(status_code=500, detail="Error al eliminar la etiqueta")
 
 
-
 @router.post("/{tag_id}/restore", response_model=Tag)
 @limiter.limit("5/hour")
 async def restore_tag(
     request: Request,
     tag_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Restaura un tag eliminado. Solo accesible para administradores.
@@ -201,16 +199,20 @@ async def restore_tag(
         logger.info(f"Usuario {current_user.id} intenta restaurar tag: ID={tag_id}")
 
         if not current_user.is_admin:
-            logger.warning(f"Permiso denegado: usuario {current_user.id} intentó restaurar tag {tag_id}")
+            logger.warning(
+                f"Permiso denegado: usuario {current_user.id} intentó restaurar tag {tag_id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Solo los administradores pueden restaurar etiquetas"
+                detail="Solo los administradores pueden restaurar etiquetas",
             )
 
         success = await crud_tag.restore_tag(db, tag_id=tag_id)
         if not success:
             logger.warning(f"Tag eliminado no encontrado: ID={tag_id}")
-            raise HTTPException(status_code=404, detail="Etiqueta eliminada no encontrada")
+            raise HTTPException(
+                status_code=404, detail="Etiqueta eliminada no encontrada"
+            )
 
         db_tag = await crud_tag.get_tag(db, tag_id=tag_id)
         logger.info(f"Tag restaurado: ID={tag_id}")
@@ -223,7 +225,6 @@ async def restore_tag(
         raise HTTPException(status_code=500, detail="Error al restaurar la etiqueta")
 
 
-
 @router.get("/deleted/", response_model=PaginatedResponse[Tag])
 @limiter.limit("10/minute")
 async def read_deleted_tags(
@@ -231,7 +232,7 @@ async def read_deleted_tags(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(crud_user.get_current_active_user)
+    current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
     Obtiene tags eliminados. Solo accesible para administradores.
@@ -240,13 +241,17 @@ async def read_deleted_tags(
         logger.info(f"Usuario {current_user.id} intenta acceder a tags eliminados")
 
         if not current_user.is_admin:
-            logger.warning(f"Acceso denegado a tags eliminados para usuario {current_user.id}")
+            logger.warning(
+                f"Acceso denegado a tags eliminados para usuario {current_user.id}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Acceso denegado: solo administradores"
+                detail="Acceso denegado: solo administradores",
             )
 
-        db_tags, total = await crud_tag.get_deleted_tags_paginated(db, skip=skip, limit=limit)
+        db_tags, total = await crud_tag.get_deleted_tags_paginated(
+            db, skip=skip, limit=limit
+        )
         pydantic_tags = [Tag.model_validate(db_tag) for db_tag in db_tags]
         page = skip // limit + 1 if limit > 0 else 1
         size = len(pydantic_tags)
@@ -258,10 +263,12 @@ async def read_deleted_tags(
             total=total,
             page=page,
             size=size,
-            total_pages=total_pages
+            total_pages=total_pages,
         )
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error al obtener tags eliminados: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al obtener etiquetas eliminadas")
+        raise HTTPException(
+            status_code=500, detail="Error al obtener etiquetas eliminadas"
+        )

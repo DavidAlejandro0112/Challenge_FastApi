@@ -2,7 +2,8 @@
 from typing import Generic, TypeVar, List
 from pydantic import BaseModel
 
-T = TypeVar('T') # T puede ser cualquier tipo, incluyendo esquemas Pydantic
+T = TypeVar("T")  # T puede ser cualquier tipo, incluyendo esquemas Pydantic
+
 
 class PaginatedResponse(BaseModel, Generic[T]):
     items: List[T]
@@ -12,4 +13,4 @@ class PaginatedResponse(BaseModel, Generic[T]):
     total_pages: int
 
     class Config:
-        from_attributes = True # Esto es importante para la conversión automática
+        from_attributes = True  # Esto es importante para la conversión automática

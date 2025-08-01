@@ -7,9 +7,10 @@ if TYPE_CHECKING:
     from app.models.post import Post
     from app.models.user import User
 
+
 class Comment(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "comments"
-    __table_args__ = {'extend_existing': True}
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)

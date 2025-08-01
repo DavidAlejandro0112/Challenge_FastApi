@@ -6,14 +6,12 @@ from sqlalchemy.exc import IntegrityError
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
-from app.models.post import Post  
+from app.models.post import Post
 from app.schemas.user import UserCreate, UserUpdate
 from app.core.security import get_password_hash, verify_password
 from app.core.logging import logger
 from typing import List, Optional, Tuple
 from sqlalchemy.orm import selectinload
-
-
 
 
 async def get_user(db: AsyncSession, user_id: int) -> Optional[User]:
@@ -35,10 +33,10 @@ async def get_user_with_posts(db: AsyncSession, user_id: int) -> Optional[User]:
         result = await db.execute(
             select(User)
             .options(
-                selectinload(User.posts)
-                .selectinload(Post.comments),  # ← Carga comentarios
-                selectinload(User.posts)
-                .selectinload(Post.tags)       # ← Carga tags
+                selectinload(User.posts).selectinload(
+                    Post.comments
+                ),  # ← Carga comentarios
+                selectinload(User.posts).selectinload(Post.tags),  # ← Carga tags
             )
             .filter(User.id == user_id, User.is_deleted == False)
         )
@@ -49,6 +47,7 @@ async def get_user_with_posts(db: AsyncSession, user_id: int) -> Optional[User]:
     except Exception as e:
         logger.error(f"Error al obtener usuario con posts {user_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
+
 
 async def get_user_by_username(db: AsyncSession, username: str) -> Optional[User]:
     """Obtiene un usuario por nombre de usuario"""
@@ -75,7 +74,9 @@ async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
-async def get_users_paginated(db: AsyncSession, skip: int = 0, limit: int = 100) -> Tuple[List[User], int]:
+async def get_users_paginated(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> Tuple[List[User], int]:
     """Obtiene una lista paginada de usuarios activos"""
     try:
         result = await db.execute(
@@ -103,18 +104,27 @@ async def get_users_paginated(db: AsyncSession, skip: int = 0, limit: int = 100)
 # AUTENTICACIÓN
 # ========================
 
-async def authenticate_user(db: AsyncSession, username: str, password: str) -> Optional[User]:
+
+async def authenticate_user(
+    db: AsyncSession, username: str, password: str
+) -> Optional[User]:
     """Autentica un usuario verificando su contraseña"""
     try:
         user = await get_user_by_username(db, username=username)
         if not user:
-            logger.info(f"Intento de autenticación fallida: usuario '{username}' no encontrado")
+            logger.info(
+                f"Intento de autenticación fallida: usuario '{username}' no encontrado"
+            )
             return None
         if not verify_password(password, user.hashed_password):
-            logger.info(f"Intento de autenticación fallida: contraseña incorrecta para '{username}'")
+            logger.info(
+                f"Intento de autenticación fallida: contraseña incorrecta para '{username}'"
+            )
             return None
         if user.is_deleted:
-            logger.warning(f"Intento de autenticación con usuario eliminado: {username}")
+            logger.warning(
+                f"Intento de autenticación con usuario eliminado: {username}"
+            )
             return None
         return user
     except Exception as e:
@@ -126,6 +136,7 @@ async def authenticate_user(db: AsyncSession, username: str, password: str) -> O
 # CRUD DE USUARIOS
 # ========================
 
+
 async def create_user(db: AsyncSession, user: UserCreate) -> User:
     """Crea un nuevo usuario"""
     try:
@@ -133,7 +144,9 @@ async def create_user(db: AsyncSession, user: UserCreate) -> User:
         if await get_user_by_email(db, user.email):
             raise HTTPException(status_code=400, detail="El email ya está registrado")
         if await get_user_by_username(db, user.username):
-            raise HTTPException(status_code=400, detail="El nombre de usuario ya está en uso")
+            raise HTTPException(
+                status_code=400, detail="El nombre de usuario ya está en uso"
+            )
 
         user_data = user.model_dump(exclude={"password"})
         hashed_password = get_password_hash(user.password)
@@ -143,12 +156,16 @@ async def create_user(db: AsyncSession, user: UserCreate) -> User:
         await db.commit()
         await db.refresh(db_user)
 
-        logger.info(f"Usuario creado: ID={db_user.id}, Username='{db_user.username}', Email='{db_user.email}'")
+        logger.info(
+            f"Usuario creado: ID={db_user.id}, Username='{db_user.username}', Email='{db_user.email}'"
+        )
         return db_user
     except IntegrityError as e:
         await db.rollback()
         logger.error(f"Error de integridad al crear usuario: {str(e)}")
-        raise HTTPException(status_code=400, detail="Error de integridad en la base de datos")
+        raise HTTPException(
+            status_code=400, detail="Error de integridad en la base de datos"
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -157,14 +174,18 @@ async def create_user(db: AsyncSession, user: UserCreate) -> User:
         raise HTTPException(status_code=500, detail="Error al crear usuario")
 
 
-async def update_user(db: AsyncSession, user_id: int, user_update: UserUpdate) -> Optional[User]:
+async def update_user(
+    db: AsyncSession, user_id: int, user_update: UserUpdate
+) -> Optional[User]:
     """Actualiza un usuario existente"""
     db_user = await get_user(db, user_id)
     if not db_user:
         logger.warning(f"Intento de actualizar usuario no encontrado: ID={user_id}")
         return None
     if db_user.is_deleted:
-        raise HTTPException(status_code=400, detail="No se puede actualizar un usuario eliminado")
+        raise HTTPException(
+            status_code=400, detail="No se puede actualizar un usuario eliminado"
+        )
 
     try:
         update_data = user_update.model_dump(exclude_unset=True)
@@ -177,7 +198,9 @@ async def update_user(db: AsyncSession, user_id: int, user_update: UserUpdate) -
         if "username" in update_data:
             existing = await get_user_by_username(db, update_data["username"])
             if existing and existing.id != user_id:
-                raise HTTPException(status_code=400, detail="El nombre de usuario ya está en uso")
+                raise HTTPException(
+                    status_code=400, detail="El nombre de usuario ya está en uso"
+                )
 
         for key, value in update_data.items():
             setattr(db_user, key, value)
@@ -242,7 +265,9 @@ async def restore_user(db: AsyncSession, user_id: int) -> bool:
         raise HTTPException(status_code=500, detail="Error al restaurar usuario")
 
 
-async def get_deleted_users(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[User]:
+async def get_deleted_users(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> List[User]:
     """Obtiene usuarios eliminados"""
     try:
         result = await db.execute(
@@ -257,15 +282,18 @@ async def get_deleted_users(db: AsyncSession, skip: int = 0, limit: int = 100) -
         return users
     except Exception as e:
         logger.error(f"Error al obtener usuarios eliminados: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al obtener usuarios eliminados")
+        raise HTTPException(
+            status_code=500, detail="Error al obtener usuarios eliminados"
+        )
 
 
 # ========================
 # AUTENTICACIÓN Y SEGURIDAD
 # ========================
 
+
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> User:
     """Verifica que el usuario esté activo"""
     if not current_user.is_active:
