@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.crud import post as crud_post
@@ -159,7 +160,7 @@ async def update_post(
         raise HTTPException(status_code=500, detail="Error al actualizar el post")
 
 
-@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{post_id}", status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
 async def delete_post(
     request: Request,
@@ -293,6 +294,7 @@ async def read_deleted_posts(
 async def create_comment_for_post(
     request: Request,
     post_id: int,
+    author_id: int,
     comment: CommentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(crud_user.get_current_active_user)
@@ -301,6 +303,9 @@ async def create_comment_for_post(
     Crea un comentario en un post. El autor del comentario es el usuario autenticado.
     """
     try:
+        logger.debug(f"Buscando username para author_id={author_id}")
+        result = await db.execute(select(User.username).where(User.id == author_id))
+        author_name = result.scalar_one_or_none()
         logger.info(f"Usuario {current_user.id} crea comentario en post: ID={post_id}")
 
         db_post = await crud_post.get_post(db, post_id=post_id)
@@ -308,7 +313,13 @@ async def create_comment_for_post(
             logger.warning(f"Post no encontrado para comentario: ID={post_id}")
             raise HTTPException(status_code=404, detail="Post no encontrado")
 
-        db_comment = await crud_comment.create_comment(db=db, comment=comment, post_id=post_id)
+        db_comment = await crud_comment.create_comment(
+            db=db,
+            comment=comment,
+            post_id=post_id,
+            author_id=current_user.id 
+            
+        )
         logger.info(f"Comentario creado: ID={db_comment.id}, Post={post_id}")
         return db_comment
 

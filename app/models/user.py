@@ -5,6 +5,7 @@ from typing import List, TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from app.models.post import Post 
+    from app.models.comment import Comment
 
 class User(Base, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "users"
@@ -24,6 +25,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         back_populates="author", 
         cascade="all, delete-orphan"
     )
+    comments:Mapped[List["Comment"]] = relationship(
+        "Comment", 
+        back_populates="author", 
+        cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"

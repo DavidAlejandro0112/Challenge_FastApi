@@ -109,7 +109,7 @@ async def read_user(
     """
     try:
         logger.info(f"Obteniendo usuario con relaciones: ID={user_id}")
-        db_user = await crud_user.get_user(db, user_id=user_id)
+        db_user = await crud_user.get_user_with_posts(db, user_id=user_id)
         if not db_user:
             logger.warning(f"Usuario no encontrado: ID={user_id}")
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -208,7 +208,7 @@ async def update_user(
 
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{user_id}", status_code=status.HTTP_200_OK)
 @limiter.limit("5/hour")
 async def delete_user(
     request: Request,

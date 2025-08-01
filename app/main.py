@@ -22,7 +22,7 @@ app.add_middleware(SlowAPIMiddleware)
 
 # middleware
 app.add_middleware(ResponseTimeMiddleware)
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+
 
 
 
