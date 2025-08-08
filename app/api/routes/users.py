@@ -25,7 +25,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def read_users(
     request: Request,
     skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=1000),
+    limit: int = Query(10, ge=1),
     db: AsyncSession = Depends(get_db),
 ):
     """

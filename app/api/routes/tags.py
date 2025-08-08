@@ -16,7 +16,7 @@ router = APIRouter(prefix="/tags", tags=["tags"])
 
 
 @router.post("/", response_model=Tag, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/hour")
+@limiter.limit("15/hour")
 async def create_tag(
     request: Request,
     tag: TagCreate,
@@ -59,7 +59,7 @@ async def create_tag(
 async def read_tags(
     request: Request,
     skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=1000),
+    limit: int = Query(10, ge=1),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -230,7 +230,7 @@ async def restore_tag(
 async def read_deleted_tags(
     request: Request,
     skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=1000),
+    limit: int = Query(10, ge=1),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(crud_user.get_current_active_user),
 ):

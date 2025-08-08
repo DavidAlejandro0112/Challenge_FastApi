@@ -1,4 +1,6 @@
+import logging
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from app.api.main import api_router
 from app.middleware.logging import ResponseTimeMiddleware
@@ -9,6 +11,9 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from app.core.config import settings
 
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="FastAPI Blog API", version="1.0.0")
 
@@ -24,6 +29,13 @@ app.add_middleware(ResponseTimeMiddleware)
 
 
 app.include_router(api_router, prefix="/api")
+
+
+@app.get("/", include_in_schema=False, response_class=RedirectResponse)
+async def redirect_to_swagger():
+    logger.info("Redirect to swagger...")
+    return RedirectResponse(url="/docs")
+
 
 if __name__ == "__main__":
     import uvicorn

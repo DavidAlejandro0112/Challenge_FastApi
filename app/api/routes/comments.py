@@ -117,7 +117,7 @@ async def delete_comment(
     current_user: User = Depends(crud_user.get_current_active_user),
 ):
     """
-    Elimina un comentario (soft delete). Solo el autor o un admin puede hacerlo.
+    Elimina un comentario. Solo el autor o un admin puede hacerlo.
     """
     try:
         logger.info(
@@ -217,7 +217,7 @@ async def restore_comment(
 async def read_deleted_comments(
     request: Request,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 10,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(crud_user.get_current_active_user),
 ):

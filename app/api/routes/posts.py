@@ -21,7 +21,7 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 
 
 @router.post("/", response_model=Post, status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/hour")  # Evita spam de publicaciones
+@limiter.limit("20/hour")  # Evita spam de publicaciones
 async def create_post(
     request: Request,
     post: PostCreate,
@@ -70,10 +70,8 @@ async def create_post(
 @limiter.limit("50/minute")
 async def read_posts(
     request: Request,
-    skip: int = Query(0, ge=0, description="Número de registros a saltar"),
-    limit: int = Query(
-        10, ge=1, le=1000, description="Número máximo de registros a devolver"
-    ),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -266,7 +264,7 @@ async def restore_post(
 async def read_deleted_posts(
     request: Request,
     skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=1000),
+    limit: int = Query(10, ge=1),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(crud_user.get_current_active_user),
 ):
